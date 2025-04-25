@@ -1,10 +1,45 @@
 #import packs
 from datetime import datetime
-expenselist = []
-incomelist = []
+import sqlite3
+import os
+
 currency = ""
 
 #function defining
+#Setup the database connection and create tables if they don't exist
+def setup_database():
+    # Check if database directory exists, if not create it
+    if not os.path.exists('data'):
+        os.makedirs('data')
+    
+    # Connect to the database (will create if it doesn't exist)
+    conn = sqlite3.connect('data/finance.db')
+    cursor = conn.cursor()
+    
+    # Create income table if it doesn't exist
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS income (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL,
+        amount REAL NOT NULL
+    )
+    ''')
+    
+    # Create expense table if it doesn't exist
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS expense (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL,
+        amount REAL NOT NULL
+    )
+    ''')
+    
+    # Commit changes and close connection
+    conn.commit()
+    conn.close()
+
 #Age Verifier which is an added feature to make the program different
 def agecheck():
     print()
@@ -142,11 +177,8 @@ def expenseoptions():
         print("You have not entered a valid answer, please try again.")
         expenseoptions()
 
-'''Main Body of the add an income function, contains nested If statements, while loops both nested and un-nested,
-for loops and try except for the date feature'''
+'''Main Body of the add an income function, now saves income to the database'''
 def incomecalc():
-    global incomelist
-    global newincome
     while True:
         print()
         print("*-------------------------Add Income---------------------------*")
@@ -154,7 +186,6 @@ def incomecalc():
         addincome = input("Add an income, Press Y to continue or N to go back. ")
         print()
         if addincome.upper() == "Y":
-            newincome = {}
             date = input("Enter the date of the income (dd/mm/yyyy): ")
             print()
             try:
@@ -162,7 +193,8 @@ def incomecalc():
             except ValueError:
                 print("You have not entered a valid date, please try again.")
                 incomecalc()
-            newincome["date"] = date.strftime("%d/%m/%Y")
+            formatted_date = date.strftime("%d/%m/%Y")
+            
             print("1. Active income (Wage, Salary, Benefits, etc.)")
             print("2. Portfolio income (Interest, Dividends, etc.)")
             print("3. Passive income (Investments, Rental, etc.)")
@@ -170,43 +202,50 @@ def incomecalc():
             print()
             newincometype= input("Please select from the list the type of income and insert the number: ")
             print()
+            
+            income_type = ""
             while True:
                 if newincometype == "1":
-                    newincome["type"] = "Active income"
+                    income_type = "Active income"
                     break
                 elif newincometype == "2":
-                    newincome["type"] = "Portfolio income"
+                    income_type = "Portfolio income"
                     break
                 elif newincometype == "3":
-                    newincome["type"] = "Passive income"
+                    income_type = "Passive income"
                     break
                 elif newincometype == "4":
-                    newincome["type"] = "Other income"
+                    income_type = "Other income"
                     break
                 else:
                     print("You have not entered a valid number, please try again.")
                     print()
                     newincometype = input("Please select from the list the type of income and insert the number: ")
                     print()
-            newincome["amount"] = input(f"Enter the amount of the income: {currency}")
-            newincome["amount"] = float(newincome["amount"])
+            
+            amount = input(f"Enter the amount of the income: {currency}")
+            amount = float(amount)
             print()
-            incomelist.append(newincome)
-            print(f"Income added successfully! This is your entry: {newincome['date'], newincome['type'], newincome['amount']}")
+            
+            # Save to database
+            conn = sqlite3.connect('data/finance.db')
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO income (date, type, amount) VALUES (?, ?, ?)", 
+                          (formatted_date, income_type, amount))
+            conn.commit()
+            conn.close()
+            
+            print(f"Income added successfully! This is your entry: {formatted_date}, {income_type}, {amount}")
         elif addincome.upper() == "N":
             print("You have chosen not to add an income.")
-            print(f"Here is your list of incomes: {incomelist}")
             incomeoptions()
             break
         else:
             print("You have not entered a valid input, please use Y or N.")
             print()
 
-'''Main Body of the add an expense function, contains same loops and if statements as the income section, also contains
-the try and except for the date feature'''
+'''Main Body of the add an expense function, now saves expense to the database'''
 def expensecalc():
-    global expenselist
-    global newexpense
     while True:
         print()
         print("*-------------------------Add Expense--------------------------*")
@@ -214,7 +253,6 @@ def expensecalc():
         addexpense = input("Add an Expense, Press Y to conitnue or N to go back. ")
         print()
         if addexpense.upper() == "Y":
-            newexpense = {}
             date = input("Enter the date of the Expense (dd/mm/yyyy): ")
             try:
                 date = datetime.strptime(date, "%d/%m/%Y")
@@ -223,8 +261,9 @@ def expensecalc():
                 print("You have not entered a valid date, please try again.")
                 print()
                 expensecalc()
-            newexpense["date"] = date.strftime("%d/%m/%Y")
+            formatted_date = date.strftime("%d/%m/%Y")
             print()
+            
             print("1. Housing expenses (Rent, Mortgage, Loan, etc.)")
             print("2. Utilities expenses (Electricity, Water, Gas, etc.)")
             print("3. Food expenses (Food, Drinks, Restaurants, etc.)")
@@ -236,135 +275,202 @@ def expensecalc():
             print()
             newexpensetype = input("Please select from the list the type of expense and insert the number: ")
             print()
+            
+            expense_type = ""
             while True:
                 if newexpensetype == "1":
-                    newexpense["type"] = "Housing expenses"
+                    expense_type = "Housing expenses"
                     break
                 elif newexpensetype == "2":
-                    newexpense["type"] = "Utilities expenses"
+                    expense_type = "Utilities expenses"
                     break
                 elif newexpensetype == "3":
-                    newexpense["type"] = "Food expenses"
+                    expense_type = "Food expenses"
                     break
                 elif newexpensetype == "4":
-                    newexpense["type"] = "Transport expenses"
+                    expense_type = "Transport expenses"
                     break
                 elif newexpensetype == "5":
-                    newexpense["type"] = "Entertainment expenses"
+                    expense_type = "Entertainment expenses"
                     break
                 elif newexpensetype == "6":
-                    newexpense["type"] = "Education expenses"
+                    expense_type = "Education expenses"
                     break
                 elif newexpensetype == "7":
-                    newexpense["type"] = "Health expenses"
+                    expense_type = "Health expenses"
                     break
                 elif newexpensetype == "8":
-                    newexpense["type"] = "Other expenses"
+                    expense_type = "Other expenses"
                     break
                 else:
                     print("You have not entered a valid number, please try again.")
                     print()
                     newexpensetype = input("Please select from the list the type of expense and insert the number: ")
                     print()
-            newexpense["amount"] = input(f"Enter the amount of the expense: {currency}")
+            
+            amount = input(f"Enter the amount of the expense: {currency}")
             print()
-            newexpense["amount"] = float(newexpense["amount"])
-            expenselist.append(newexpense)
-            print(f"Expense added successfully! This is your entry: {newexpense['date'], newexpense['type'], newexpense['amount']}")
+            amount = float(amount)
+            
+            # Save to database
+            conn = sqlite3.connect('data/finance.db')
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO expense (date, type, amount) VALUES (?, ?, ?)", 
+                          (formatted_date, expense_type, amount))
+            conn.commit()
+            conn.close()
+            
+            print(f"Expense added successfully! This is your entry: {formatted_date}, {expense_type}, {amount}")
         elif addexpense.upper() == "N":
             print("You have chosen not to add an expense.")
-            print(f"Here is your list of expense: {expenselist}")
             expenseoptions()
             break
         else:
             print("You have not entered a valid input, please use Y or N.")
 
-#View The whole list of incomes
+#View The list of incomes from database
 def viewincome():
     print()
     print("*-------------------------View Income--------------------------*")
     print()
-    if incomelist == []:
+    
+    # Connect to database and get all incomes
+    conn = sqlite3.connect('data/finance.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM income")
+    incomes = cursor.fetchall()
+    conn.close()
+    
+    if not incomes:
         print("You have not added any incomes yet, please go back and add an income before trying again!")
-        incomeoptions()
     else:
-        print(incomelist)
-        incomeoptions()
+        print("ID | Date | Type | Amount")
+        print("-" * 50)
+        for income in incomes:
+            print(f"{income[0]} | {income[1]} | {income[2]} | {currency}{income[3]}")
+    
+    print()
+    incomeoptions()
 
-#View The whole list of expenses
+#View The list of expenses from database
 def viewexpense():
     print()
     print("*-------------------------View Expense-------------------------*")
     print()
-    if expenselist == []:
+    
+    # Connect to database and get all expenses
+    conn = sqlite3.connect('data/finance.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM expense")
+    expenses = cursor.fetchall()
+    conn.close()
+    
+    if not expenses:
         print("You have not added any expenses yet, please go back and add an expense before trying again!")
-        expenseoptions()
     else:
-        print(expenselist)
-        expenseoptions()
+        print("ID | Date | Type | Amount")
+        print("-" * 50)
+        for expense in expenses:
+            print(f"{expense[0]} | {expense[1]} | {expense[2]} | {currency}{expense[3]}")
+    
+    print()
+    expenseoptions()
 
-'''Main Body of the delete an income function, uses the try and except for the date feature as verification.
-uses a for loop to run through an unlimted number of incomes to search for the correct dictionary to delete'''
+'''Delete an income function using database'''
 def deleteincome():
     print()
     print("*-------------------------Delete income------------------------*")
     print()
-    if incomelist == []:
+    
+    # Connect to database and get all incomes
+    conn = sqlite3.connect('data/finance.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM income")
+    incomes = cursor.fetchall()
+    
+    if not incomes:
         print("You have not added any incomes yet, please go back and add an income before trying again!")
+        conn.close()
         incomeoptions()
-    else:
-        print("Please enter the date of the income you would like to delete.")
+        return
+    
+    print("Current incomes:")
+    print("ID | Date | Type | Amount")
+    print("-" * 50)
+    for income in incomes:
+        print(f"{income[0]} | {income[1]} | {income[2]} | {currency}{income[3]}")
+    
     print()
-    deldate = input("Date dd/mm/yyyy: ")
-    print()
-    delinc = input("How much was the income for that you want to delete? ")
-    delinc = float(delinc)
-    print()
+    income_id = input("Enter the ID of the income you want to delete: ")
     try:
-        date = datetime.strptime(deldate, "%d/%m/%Y")
+        income_id = int(income_id)
+        
+        # Check if the income exists
+        cursor.execute("SELECT * FROM income WHERE id = ?", (income_id,))
+        income = cursor.fetchone()
+        
+        if income:
+            # Delete the income
+            cursor.execute("DELETE FROM income WHERE id = ?", (income_id,))
+            conn.commit()
+            print(f"Income with ID {income_id} deleted successfully!")
+        else:
+            print(f"No income found with ID {income_id}")
+    
     except ValueError:
-        print("You have not entered a valid date, please try again.")
-        print()
-        deleteincome()
-    for newincome in incomelist:
-        if newincome["date"] == deldate and newincome["amount"] == delinc:
-            incomelist.remove(newincome)
-            print(f"Income deleted successfully! This is your remaining Incomes: {incomelist}")
-            break
+        print("Please enter a valid numeric ID")
+    
+    conn.close()
     incomeoptions()
-'''Main Body of the delete an Expense function, uses the try and except for the date feature as verification.
-uses a for loop to run through an unlimted number of expenses to search for the correct dictionary to delete'''
+
+'''Delete an expense function using database'''
 def deleteexp():
     print()
     print("*------------------------Delete Expense------------------------*")
     print()
-    if expenselist == []:
+    
+    # Connect to database and get all expenses
+    conn = sqlite3.connect('data/finance.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM expense")
+    expenses = cursor.fetchall()
+    
+    if not expenses:
         print("You have not added any expenses yet, please go back and add an expense before trying again!")
+        conn.close()
         expenseoptions()
-    else:
-        print("Please enter the date of the expense you would like to delete.")
+        return
+    
+    print("Current expenses:")
+    print("ID | Date | Type | Amount")
+    print("-" * 50)
+    for expense in expenses:
+        print(f"{expense[0]} | {expense[1]} | {expense[2]} | {currency}{expense[3]}")
+    
     print()
-    deldate = input("Date dd/mm/yyyy: ")
-    print()
-    delexp = input("How much was the expense for that you want to delete? ")
-    delexp = float(delexp)
-    print()
+    expense_id = input("Enter the ID of the expense you want to delete: ")
     try:
-        date = datetime.strptime(deldate, "%d/%m/%Y")
+        expense_id = int(expense_id)
+        
+        # Check if the expense exists
+        cursor.execute("SELECT * FROM expense WHERE id = ?", (expense_id,))
+        expense = cursor.fetchone()
+        
+        if expense:
+            # Delete the expense
+            cursor.execute("DELETE FROM expense WHERE id = ?", (expense_id,))
+            conn.commit()
+            print(f"Expense with ID {expense_id} deleted successfully!")
+        else:
+            print(f"No expense found with ID {expense_id}")
+    
     except ValueError:
-        print("You have not entered a valid date, please try again.")
-        print()
-        deleteexp()
-    for newexpense in expenselist:
-        if newexpense["date"] == deldate and newexpense["amount"] == delexp:
-            expenselist.remove(newexpense)
-            print(f"Expense deleted successfully! This is your remaining Expenses: {expenselist}")
-            break
+        print("Please enter a valid numeric ID")
+    
+    conn.close()
     expenseoptions()
 
-'''An added function to make the program different, lets the user calculate the amount of tax on an item for sale.
-only used for UK purposes and provides information on the current tax rate, price before vat, price after vat
-and the total amount of VAT on the item'''
+'''VAT Calculator function'''
 def VATUK():
     uksalestax = 20
     print()
@@ -381,7 +487,7 @@ def VATUK():
         except TypeError or ValueError:
             print("You have not entered a valid number, please try again.")
             print("Please enter the amount of the item with the decimal point.")
-            print("Exaample: 10.00 or 9.99 or 0.50")
+            print("Example: 10.00 or 9.99 or 0.50")
     vatamount = amountb4vat - amountaftervat
     print()
     print("Calculating VAT on an Item (UK only)...")
@@ -390,26 +496,54 @@ def VATUK():
     print(f"The total amount of the item is £{amountaftervat + vatamount}")
     frontpage()
 
-'''Main body of the comparisons function, allows the user to view the sum of all the incomes put together, view the sum
-of all the expenses put together, work out the remaining balance after total income is taken away from total expenses.
-float() was added as if the user entered the amount as a decimal the program would crash when working out totals.'''
+#Comparisons function
 def comparisons():
-    if incomelist == [] or expenselist == []:
-        print()
+    print()
+    print("*----------------------View Comparisons-----------------------*")
+    print()
+    
+    # Connect to database
+    conn = sqlite3.connect('data/finance.db')
+    cursor = conn.cursor()
+    
+    # Check if there are any incomes and expenses
+    cursor.execute("SELECT COUNT(*) FROM income")
+    income_count = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM expense")
+    expense_count = cursor.fetchone()[0]
+    
+    if income_count == 0 or expense_count == 0:
         print("You need to add both an income and expense to select this option, please go back and add both before trying again!")
+        conn.close()
         frontpage()
-    else:
-        print()
-    highestincome = max(income["amount"] for income in incomelist)
-    highestexpense = max(expense["amount"] for expense in expenselist)
-    lowestincome = min(income["amount"] for income in incomelist)
-    lowestexpense = min(expense["amount"] for expense in expenselist)
-    totalincome = sum(income["amount"] for income in incomelist)
-    totalexpense = sum(expense["amount"] for expense in expenselist)
+        return
+    
+    # Get highest and lowest values
+    cursor.execute("SELECT MAX(amount) FROM income")
+    highestincome = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT MAX(amount) FROM expense")
+    highestexpense = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT MIN(amount) FROM income")
+    lowestincome = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT MIN(amount) FROM expense")
+    lowestexpense = cursor.fetchone()[0]
+    
+    # Get total amounts
+    cursor.execute("SELECT SUM(amount) FROM income")
+    totalincome = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT SUM(amount) FROM expense")
+    totalexpense = cursor.fetchone()[0]
+    
     totalleftover = totalincome - totalexpense
+    
+    conn.close()
+    
     while True:
-        print("*----------------------View Comparisons-----------------------*")
-        print()
         print("What would you like to know or compare?")
         print()
         print("1. Total Income Amount, and highest Income Amount inputted")
@@ -422,13 +556,15 @@ def comparisons():
         print()
         print("5. Return to the main menu")
         print()
-        compans = input("What would you like to do? (1, 2, 3, 4): ")
+        compans = input("What would you like to do? (1, 2, 3, 4, 5): ")
         print()
         if compans == "1":
             print(f"Total income amount is {currency}{totalincome}")
+            print(f"Highest income amount is {currency}{highestincome}")
             print()
         elif compans == "2":
             print(f"Total expense amount is {currency}{totalexpense}")
+            print(f"Highest expense amount is {currency}{highestexpense}")
             print()
         elif compans == "3":
             print(f"Total leftover is {currency}{totalleftover}")
@@ -455,6 +591,9 @@ print()
 print("                 Welcome to Your Finances!")
 print("                Please enter your full name")
 print()
+
+# Setup the database first
+setup_database()
 
 #Recieve user details
 name = input("Your Name: ")
